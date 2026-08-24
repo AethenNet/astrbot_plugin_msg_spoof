@@ -1,0 +1,44 @@
+{
+  "blacklist_mode": {
+    "description": "黑名单模式开关",
+    "type": "bool",
+    "default": true,
+    "hint": "开启=黑名单模式（除黑名单群外均可使用插件），关闭=白名单模式（仅白名单群可使用插件）"
+  },
+  "blacklist": {
+    "description": "黑名单群号列表",
+    "type": "template_list",
+    "hint": "添加被拉黑的群号，黑名单模式下这些群无法使用插件",
+    "templates": {
+      "group": {
+        "name": "群号",
+        "display_item": "group_id",
+        "items": {
+          "group_id": {
+            "description": "QQ群号",
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    }
+  },
+  "whitelist": {
+    "description": "白名单群号列表",
+    "type": "template_list",
+    "hint": "添加白名单群号，白名单模式下仅这些群可使用插件",
+    "templates": {
+      "group": {
+        "name": "群号",
+        "display_item": "group_id",
+        "items": {
+          "group_id": {
+            "description": "QQ群号",
+            "type": "string",
+            "default": ""
+          }
+        }
+      }
+    }
+  }
+}
