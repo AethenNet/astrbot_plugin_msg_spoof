@@ -16,17 +16,16 @@
 
 ## 插件介绍
 
-QQ消息伪装插件（astrbot_plugin_msg_spoof）是一款为 AstrBot 开发的趣味插件，可以伪装成任意QQ用户发送消息，并以**聊天记录转发（合并转发）**的形式呈现。插件支持自动获取QQ用户真实昵称，支持文本、图片、表情等多种消息类型。
+astrbot_plugin_msg_spoof一款用于 AstrBot 的插件，可以伪装成任意QQ用户发送消息，并以聊天记录的形式呈现。插件支持自动获取QQ用户真实昵称，支持文本、图片、表情等多种消息类型
 
 ## 功能特点
 
 - **快捷伪装**：一条命令快速生成多用户伪装聊天记录
 - **详细伪装**：多轮对话式添加消息，支持随时切换伪装用户
-- **自动获取昵称**：通过API自动获取QQ用户真实昵称
+- **自动获取**：自动获取QQ用户
 - **多类型消息**：支持文本、图片、表情等消息类型
 - **黑白名单管理**：支持群黑名单/白名单模式，灵活控制使用范围
 - **超时自动重置**：详细伪装模式30秒无操作自动重置
-- **转发消息呈现**：所有结果以QQ合并转发聊天记录形式发送
 
 ## 安装方法
 
@@ -51,7 +50,7 @@ git clone https://github.com/AethenNet/astrbot_plugin_msg_spoof.git
 
 ## 使用方法
 
-### 1⃣ 快捷伪装
+### 1️⃣ 快捷伪装
 
 **命令：** `/伪装` （别名：`伪装消息`）
 
@@ -75,7 +74,7 @@ git clone https://github.com/AethenNet/astrbot_plugin_msg_spoof.git
 /伪装 123456 文本 图片 文本 1234567 图片 文本
 ```
 
-### 2⃣ 详细伪装
+### 2️⃣ 详细伪装
 
 **命令：** `/伪装x` （别名：`伪装x消息`、`伪装消息x`）
 
@@ -120,25 +119,25 @@ git clone https://github.com/AethenNet/astrbot_plugin_msg_spoof.git
 **超时处理：**
 - 30秒内未回复，机器人发送 `指令使用超时！` 并重置会话
 
-### 3⃣ 查看帮助
+### 3️⃣ 查看帮助
 
 **命令：** `/伪装消息帮助`
 
 **说明：** 以转发消息形式查看完整帮助菜单
 
-### 4⃣ 群黑名单
+### 4️⃣ 群黑名单
 
 **命令：** `/群黑名单`
 
 **说明：** 查看当前被拉黑的群聊列表
 
-### 5⃣ 群白名单
+### 5️⃣ 群白名单
 
 **命令：** `/群白名单`
 
 **说明：** 查看当前白名单群聊列表
 
-### 6⃣ 黑白名单模式切换
+### 6️⃣ 黑白名单模式切换
 
 **命令：** `/伪装群名单 <黑名单|白名单>` （别名：`伪装群设置`）
 
@@ -203,18 +202,8 @@ git clone https://github.com/AethenNet/astrbot_plugin_msg_spoof.git
 
 使用本插件即表示您已阅读并同意此免责声明。
 
-## 作者信息
+## 插件信息
 
-- **作者：** SummerDew
 - **插件名：** astrbot_plugin_msg_spoof
 - **版本：** v1.0
 - **仓库：** [GitHub](https://github.com/AethenNet/astrbot_plugin_msg_spoof)
-
-## 致谢
-
-- 参考插件：[astrbot_plugin_SessionFaker](https://github.com/advent259141/astrbot_plugin_SessionFaker) by Jason.Joestar
-- 框架：[AstrBot](https://github.com/AstrBotDevs/AstrBot)
-
-## 许可证
-
-MIT License
