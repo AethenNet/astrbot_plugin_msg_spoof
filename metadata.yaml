@@ -11,3 +11,4 @@ support_platforms:
   - aiocqhttp
   - qq_official
   - qq_official_webhook
+category: 工具
