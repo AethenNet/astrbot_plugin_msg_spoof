@@ -4,11 +4,11 @@ short_desc: 伪装QQ用户消息，以聊天记录转发形式发送
 desc: |
   QQ消息伪装插件，支持快捷伪装和详细伪装两种模式，以聊天记录转发（合并转发）形式呈现伪装消息
 help: 发送 /伪装消息帮助 查看使用说明。
-version: 1.0.0
+version: 1.0.1
 author: SummerDew
 repo: https://github.com/AethenNet/astrbot_plugin_msg_spoof
 support_platforms:
   - aiocqhttp
   - qq_official
   - qq_official_webhook
-category: 工具
+category: 工具
