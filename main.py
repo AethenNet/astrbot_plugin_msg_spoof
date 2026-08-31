@@ -1,7 +1,7 @@
 """
 QQ消息伪装插件 (astrbot_plugin_msg_spoof)
 作者: SummerDew
-版本: 1.0
+版本: 1.0.2
 功能: 伪装QQ用户消息，以聊天记录转发形式发送
 """
 
@@ -22,6 +22,7 @@ from astrbot.api.message_components import (
     Node,
     Nodes,
     Face,
+    At,
 )
 
 
@@ -57,7 +58,7 @@ class DetailSession:
     "msg_spoof",
     "SummerDew",
     "QQ消息伪装插件，支持快捷/详细伪装，以聊天记录转发形式发送",
-    "1.0.0",
+    "1.0.2",
     "https://github.com/AethenNet/astrbot_plugin_msg_spoof",
 )
 class MsgSpoofPlugin(Star):
@@ -286,7 +287,30 @@ class MsgSpoofPlugin(Star):
             logger.debug(f"[msg_spoof] 提取图片信息失败: {e}")
         return info
 
-    async def _download_image_to_local(self, image_comp) -> str | None:
+    @staticmethod
+    def _sanitize_display_name(display_name) -> str:
+        """Normalize a real-At name before using it as a forward-node name."""
+        if display_name is None:
+            return ""
+        text = str(display_name)
+        text = re.sub(r"[\x00-\x1f\x7f]+", " ", text)
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _get_at_image_url(self, image_comp) -> str | None:
+        """Resolve only HTTP(S) image URLs for the real-At path."""
+        url = getattr(image_comp, "url", None)
+        if url:
+            if isinstance(url, str) and url.startswith(("http://", "https://")):
+                return url
+            return None
+        file_value = getattr(image_comp, "file", None)
+        if isinstance(file_value, str) and file_value.startswith(("http://", "https://")):
+            return file_value
+        return None
+
+    async def _download_image_to_local(
+        self, image_comp, remote_url: str | None = None
+    ) -> str | None:
         """
         将图片下载到本地，返回本地文件路径。
         优先使用 convert_to_file_path()，失败则用 URL 下载。
@@ -306,6 +330,11 @@ class MsgSpoofPlugin(Star):
 
             # 方式2: 使用 URL 下载
             url = getattr(image_comp, "url", None)
+            if not (
+                isinstance(url, str)
+                and url.startswith(("http://", "https://"))
+            ):
+                url = remote_url
             if url and isinstance(url, str) and url.startswith(("http://", "https://")):
                 logger.info(f"[msg_spoof] 尝试通过URL下载图片: {url}")
                 filename = f"img_{int(time.time() * 1000)}.jpg"
@@ -438,6 +467,169 @@ class MsgSpoofPlugin(Star):
                     result.append((current_qq, token["type"], token["content"]))
         return result, ""
 
+    async def _parse_at_spoof(
+        self, event: AstrMessageEvent, command_prefix: str
+    ) -> tuple[list, str]:
+        """Parse quick spoof groups delimited by real At components."""
+        raw_components = getattr(getattr(event, "message_obj", None), "message", None)
+        if raw_components is None:
+            return [], ""
+        raw_components = list(raw_components)
+        if not raw_components:
+            return [], ""
+
+        validated_components = []
+        target_qq = None
+        target_display_name = ""
+        group_has_body = False
+
+        def strip_command_prefix(text: str) -> str:
+            """Strip a command only from the first Plain component."""
+            text = str(text or "")
+            candidate_text = text.lstrip()
+            prefixes = []
+            for prefix in command_prefix.split("|"):
+                if prefix:
+                    prefixes.extend((prefix, "/" + prefix))
+            prefixes = sorted(set(prefixes), key=len, reverse=True)
+            for prefix in prefixes:
+                if candidate_text == prefix:
+                    return ""
+                if candidate_text.startswith(prefix):
+                    boundary = candidate_text[len(prefix) : len(prefix) + 1]
+                    if boundary and boundary.isspace():
+                        return candidate_text[len(prefix) :].lstrip()
+            return text
+
+        def cleanup_created_paths(created_paths: set[str]):
+            for path in created_paths:
+                try:
+                    os.remove(path)
+                except FileNotFoundError:
+                    pass
+                except Exception as e:
+                    logger.debug(f"[msg_spoof] 清理解析临时文件失败: {path}: {e}")
+
+        def normalized_path(path) -> str:
+            return os.path.normcase(os.path.abspath(os.fspath(path)))
+
+        # Only files newly appearing in the plugin temp directory can be
+        # attributed to this parse and cleaned up on a later conversion error.
+        preexisting_paths = set()
+        preexisting_paths_known = False
+        try:
+            if self.temp_image_dir.exists():
+                preexisting_paths = {
+                    normalized_path(path)
+                    for path in self.temp_image_dir.rglob("*")
+                    if path.is_file()
+                }
+            preexisting_paths_known = True
+        except Exception as e:
+            logger.debug(f"[msg_spoof] 记录解析前临时文件失败: {e}")
+
+        try:
+            for index, comp in enumerate(raw_components):
+                if isinstance(comp, Plain):
+                    text = getattr(comp, "text", "")
+                    if index == 0:
+                        text = strip_command_prefix(text)
+                    if not str(text).strip():
+                        continue
+                    if target_qq is None:
+                        return [], "❌ 格式错误！真实@用户必须是第一个参数"
+                    for token in str(text).split():
+                        ok, err = self._check_message_size("text", token)
+                        if not ok:
+                            return [], err
+                        validated_components.append(
+                            (target_qq, "text", token, target_display_name)
+                        )
+                    group_has_body = True
+                elif isinstance(comp, At):
+                    if target_qq is not None and not group_has_body:
+                        return [], "❌ 缺少消息内容，请在每个真实@用户后提供消息"
+                    qq_value = getattr(comp, "qq", None)
+                    next_qq = str(qq_value).strip() if qq_value is not None else ""
+                    if (
+                        not next_qq
+                        or next_qq.lower() == "all"
+                        or not self._is_qq_number(next_qq)
+                    ):
+                        return [], "❌ @用户无效，请使用有效的QQ号"
+                    target_qq = next_qq
+                    target_display_name = self._sanitize_display_name(
+                        getattr(comp, "name", None)
+                    )
+                    group_has_body = False
+                elif isinstance(comp, (Image, Face)):
+                    if target_qq is None:
+                        return [], "❌ 格式错误！真实@用户必须是第一个参数"
+                    validated_components.append(
+                        (target_qq, "media", comp, target_display_name)
+                    )
+                    group_has_body = True
+                else:
+                    component_name = getattr(comp, "type", type(comp).__name__)
+                    return [], f"❌ 暂不支持的消息类型：{component_name}"
+
+            if target_qq is None:
+                return [], ""
+            if not group_has_body:
+                return [], "❌ 缺少消息内容，请在每个真实@用户后提供消息"
+        except Exception as e:
+            logger.error(f"[msg_spoof] 校验@伪装消息失败: {e}", exc_info=True)
+            return [], "❌ 解析消息失败，请检查消息内容是否有效"
+
+        messages = []
+        created_paths = set()
+
+        try:
+            for item in validated_components:
+                qq_number = item[0]
+                component_type = item[1]
+                display_name = item[3] if len(item) >= 4 else ""
+                if component_type == "text":
+                    messages.append((qq_number, "text", item[2], display_name))
+                    continue
+                component = item[2]
+                if isinstance(component, Image):
+                    img_info = self._extract_image_info(component)
+                    remote_url = self._get_at_image_url(component)
+                    if remote_url and not img_info.get("url"):
+                        img_info["url"] = remote_url
+                    local_path = await self._download_image_to_local(
+                        component, remote_url=remote_url
+                    )
+                    if local_path:
+                        local_path = str(local_path)
+                        normalized = normalized_path(local_path)
+                        if (
+                            preexisting_paths_known
+                            and os.path.isfile(local_path)
+                            and normalized not in preexisting_paths
+                        ):
+                            created_paths.add(normalized)
+                        img_info["local_path"] = local_path
+                    ok, err = self._check_message_size("image", img_info)
+                    if not ok:
+                        cleanup_created_paths(created_paths)
+                        return [], err
+                    messages.append((qq_number, "image", img_info, display_name))
+                else:
+                    face_info = self._extract_face_info(component)
+                    ok, err = self._check_message_size("face", face_info)
+                    if not ok:
+                        cleanup_created_paths(created_paths)
+                        return [], err
+                    messages.append((qq_number, "face", face_info, display_name))
+        except Exception as e:
+            cleanup_created_paths(created_paths)
+            logger.error(f"[msg_spoof] 转换@伪装消息失败: {e}", exc_info=True)
+            return [], "❌ 解析消息失败，请检查消息内容是否有效"
+
+        return messages, ""
+
     # ==================== 生成转发消息 ====================
 
     async def _build_forward_message(self, messages: list) -> Nodes | None:
@@ -445,10 +637,19 @@ class MsgSpoofPlugin(Star):
             return None
         nodes_list = []
         nickname_cache = {}
-        for qq_number, content_type, content in messages:
-            if qq_number not in nickname_cache:
-                nickname_cache[qq_number] = await self.get_qq_nickname(qq_number)
-            nickname = nickname_cache[qq_number]
+        for message in messages:
+            if not isinstance(message, (tuple, list)) or len(message) not in (3, 4):
+                logger.warning("[msg_spoof] 忽略格式无效的消息节点")
+                continue
+            qq_number, content_type, content = message[:3]
+            display_name = message[3] if len(message) == 4 else ""
+            nickname = self._sanitize_display_name(display_name)
+            if not nickname:
+                if qq_number not in nickname_cache:
+                    nickname_cache[qq_number] = self._sanitize_display_name(
+                        await self.get_qq_nickname(qq_number)
+                    )
+                nickname = nickname_cache[qq_number] or str(qq_number)
             node_content = []
             if content_type == "text":
                 node_content.append(Plain(str(content)))
@@ -522,6 +723,28 @@ class MsgSpoofPlugin(Star):
             allowed, msg = self._check_group_permission(event)
             if not allowed:
                 yield event.plain_result(msg)
+                return
+            raw_components = getattr(getattr(event, "message_obj", None), "message", None)
+            if raw_components is not None and any(
+                isinstance(component, At) for component in raw_components
+            ):
+                messages, parse_error = await self._parse_at_spoof(
+                    event, "伪装|伪装消息"
+                )
+                if parse_error:
+                    yield event.plain_result(parse_error)
+                    return
+                if not messages:
+                    yield event.plain_result(
+                        "❌ 未能解析出有效的消息节点\n"
+                        "请确保格式正确：/伪装 <QQ号或@用户> <消息内容>"
+                    )
+                    return
+                forward_msg = await self._build_forward_message(messages)
+                if forward_msg:
+                    yield event.chain_result([forward_msg])
+                else:
+                    yield event.plain_result("❌ 生成转发消息失败，请检查消息内容是否有效")
                 return
             components = await self._parse_message_components(event, "伪装|伪装消息")
             if not components:

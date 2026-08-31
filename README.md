@@ -6,7 +6,7 @@
 
 **AstrBot 插件 | 伪装QQ用户消息，以聊天记录转发形式发送**
 
-[![版本](https://img.shields.io/badge/version-v1.0-blue)]()
+[![版本](https://img.shields.io/badge/version-v1.0.2-blue)]()
 [![作者](https://img.shields.io/badge/author-SummerDew-green)]()
 [![平台](https://img.shields.io/badge/platform-AstrBot-orange)]()
 
@@ -73,6 +73,18 @@ git clone https://github.com/AethenNet/astrbot_plugin_msg_spoof.git
 ```
 /伪装 123456 文本 图片 文本 1234567 图片 文本
 ```
+
+**真实 @ 用法：**
+在消息中使用客户端的真实 @，即可直接按用户分组伪装：
+```
+/伪装 @某人 消息
+/伪装 @甲 消息1 @乙 消息2 @丙 消息3
+```
+- 每个真实 @ 都会开始一个消息组，后续文字、图片或表情归入该组。
+- 真实 @ 的名称用于转发内容内部节点；外层预览、标题和头像由 QQ/客户端控制，无法保证同步为该名称。
+- 每个消息组都必须有内容；`@全体成员`、无效目标或空消息组会被拒绝。
+- 旧的数字 QQ 号单用户和多用户写法仍然支持。
+- 直接输入普通文字 `@123` 不会被当作真实 @，请使用客户端的真实 @ 操作。
 
 ### 2️⃣ 详细伪装
 
@@ -202,8 +214,17 @@ git clone https://github.com/AethenNet/astrbot_plugin_msg_spoof.git
 
 使用本插件即表示您已阅读并同意此免责声明。
 
+## 更新记录
+
+### v1.0.2
+- 优先使用真实 @ 的名称作为转发内容内部节点名称，并对名称做空白与控制字符清理。
+- 名称缺失时继续使用昵称 API，API 失败则回退到 QQ 号；外层预览、标题和头像仍由 QQ/客户端控制。
+
+### v1.0.1
+- 快捷伪装支持真实 @ 用户分组，同时保留数字 QQ 号写法。
+
 ## 插件信息
 
 - **插件名：** astrbot_plugin_msg_spoof
-- **版本：** v1.0
+- **版本：** v1.0.2
 - **仓库：** [GitHub](https://github.com/AethenNet/astrbot_plugin_msg_spoof)
